@@ -246,14 +246,43 @@ byte CY8C95X0::__getPortDirection(uint8_t group)
 }
 
 /* Get port interrupt masks */
-byte CY8C95X0::__getIntMask(uint8_t group)
+byte CY8C95X0::__interrupt(uint8_t group)
 {
-  byte tmp;
   __portSelect(group);
-  rawWrite(1, REG_INT_MASK);
+  rawWrite(1, REG_INT_STAT_0 + group);
   Wire.requestFrom(address, uint8_t(1));
-  if(Wire.available()) tmp = Wire.read();
+  if(Wire.available()) return Wire.read();
+  return 0;
+}
+
+/* Get port interrupts for a group */
+byte CY8C95X0::_interrupt(uint8_t group)
+{
+  if(group >= group_c) return tmp;
+  return __interrupt(group);
+}
+
+/* The following 3 functions return a boolean which is the
+ * interrupt status on a particular pin
+ */
+boolean CY8C95X0::interrupt(pin_t pin)
+{
+  boolean tmp = false;
+  tmp = __interrupt(pin.group) & (1 << pin.pin);
   return tmp;
+}
+
+/* by a group/pin combo */
+boolean CY8C95X0::interrupt(uint8_t group, uint8_t pin)
+{
+  pin_t tmp = {group, pin};
+  return (tmp);
+}
+
+/* by raw pin number */
+boolean CY8C95X0::interrupt(uint8_t pin)
+{
+  return interrupt(pinTranslate(pin));
 }
 
 /* Get port inversion states */
@@ -266,6 +295,120 @@ byte CY8C95X0::__getInvStates(uint8_t group)
   if(Wire.available()) tmp = Wire.read();
   return tmp;
 }
+
+/* Everybody in this world is just like me. */
+/* Get inversion states for a whole group */
+byte CY8C95X0::getInversionGroup(uint8_t group)
+{
+  if(group >= group_c) return 0x00;
+  return __getInvStates(group);
+}
+
+boolean CY8C95X0::getInversion(pin_t pin)
+{
+  boolean tmp = false;
+  tmp = getInvStates(pin.group) & (1 << pin.pin);
+  return tmp;
+}
+
+boolean CY8C95X0::getInversion(uint8_t group, uint8_t pin)
+{
+  pin_t tmp = {group,pin};
+  return getInversion(tmp);
+}
+
+boolean CY8C95X0::getInversion(uint8_t pin)
+{
+  return getInversion(pinTranslate(pin));
+}
+
+/* High level pin invert (Just calls the register alone) */
+void CY8C95X0::__invert(uint8_t pins)
+{
+  rawWrite(2,REG_INVERSION,pins);
+}
+
+/* This calls the required port select and __invert, as well as
+ * validating the provided group */
+void CY8C95X0::_invert(uint8_t group, uint8_t pins)
+{
+  __portSelect(group);
+  __invert(pins);
+}
+
+/* This can either set all pins to inverting, turn off inverting,
+ * or invert the current inverting 
+ */
+void CY8C95X0::invertGroup(uint8_t group, byte mode)
+{
+  if(mode == 0x00) _invert(group,0x00);
+  else if(mode == 0x01) _invert(group,0xFF);
+  else
+  {
+    if(group >= group_c) return; //We can't have someone addressing out of bounds
+    byte pins = invstates[group];
+    //Invert the pins
+    //Write it to invstates, and _invert
+  }
+}
+
+/* Set a pin to have inverse output */
+/* There are modes allowed only in this function
+ * which accepts a pin type.
+ * 0 = turn off
+ * 1 = Turn on //Default
+ * everything else = toggle
+ */
+void CY8C95X0::invert(pin_t pin, byte mode)
+{
+  if(pin.group >= group_c) return;
+  if(mode == 0x00)
+  {
+    invstates[pin.group] &= ~(1 << pin.pin);
+  }
+  else if (mode == 0x01)
+  {
+    invstates[pin.group] |= 1 << pin.pin;
+  }
+  else
+  {
+    invstates[pin.group] ^= 1 << pin.pin;
+  }
+  _invert(pin.group,invstates[pin.group]);
+}
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+void CY8C95X0::invert(uint8_t group, uint8_t pin)
+{
+  pin_t tmp = {group,pin};
+  invert(pins);
+}
+
+void CY8C95X0::invert(uint8_t pin)
+{
+  invert(pinTranslate(pin));
+}
+
+/*Toggle the inversion on a single pin */
+void CY8C95X0::invertT(uint8_t pin)
+{
+  invert(pinTranslate(pin),2);
+}
+void CY8C95X0::invertT(uint8_t group, uint8_t pin)
+{
+  pin_t tmp = {group,pin};
+  invert(tmp,2);
+}
+/* Turn inversion off for a pin */
+void CY8C95X0::invertOff(uint8_t pin)
+{
+  invert(pinTranslate(pin),0);
+}
+void CY8C95X0::invertOff(uint8_t group, uint8_t pin)
+{
+  pin_t tmp = {group,pin};
+  invert(tmp,0);
+}
+
 
 /* Get the divider value */
 byte CY8C95X0::__getDivider()
@@ -320,12 +463,6 @@ void CY8C95X0::__portSelect(byte port)
 {
   if(!validPort(port)) return; //If the port specified is out of our range, exit
   rawWrite(2,REG_PORT_SEL,port);
-}
-
-/* This handles input interrupt masking, it will not initially be enabled at a higher level */
-byte CY8C95X0::__interruptMask(byte port)
-{
-  //return rawRead(REG_INT_MASK);
 }
 
 /* This is a low-level function for handling pwm enabling/disabling
@@ -612,6 +749,7 @@ void CY8C95X0::pwmConfig(byte circuit, byte duty)
   _pwmConfig(circuit, duty);
 }
 
+
 //Exactly like the arduino method
 boolean CY8C95X0::digitalRead(uint8_t pin)
 {
@@ -684,6 +822,3 @@ void CY8C95X0::analogWrite(uint8_t pin, uint8_t value)
 {
   _pwmConfig(pinPWM(pinTranslate(pin)),value);
 }
-
-
-

@@ -55,7 +55,6 @@ class CY8C95X0
   byte invstates[8]; //State of pin inversions
   byte pindirections[8]; //State of pin directions
   pwm_t pwmconf[16]; //PWM configuration (per-channel)
-  
   byte divider;
   byte enable;
   byte CRC;
@@ -73,7 +72,25 @@ class CY8C95X0
   void rawWrite(int, ...);
   void __getConfig();
   void __portSelect(byte);
-  byte __interruptMask(byte);
+
+//All of these need to be renamed
+  byte __interrupt(uint8_t);
+  byte _interrupt(uint8_t);
+  boolean interrupt(pin_t);
+  boolean interrupt(uint8_t); 
+  boolean interrupt(uint8_t, uint8_t);
+//Get Interrupt 'done' above, misnamed 'mask'
+//Need to write Get and write interrupt mask functions
+  byte __getInterruptMask(uint8_t);
+  byte _getInterruptMask(uint8_t);
+  boolean getInterruptMask(pin_t);
+  boolean getInterruptMask(uint8_t, uint8_t);
+  boolean getInterruptMask(uint8_t);
+  void __interruptMask(uint8_t, byte);
+  void _interruptMask(uint8_t, byte);
+  void interruptMask(pin_t);
+  void interruptMask(uint8_t, uint8_t);
+  void interruptMask(uint8_t);
 
   int pinPWM(pin_t);
   pwm_t __getPWMConfig(uint8_t);
@@ -92,10 +109,23 @@ class CY8C95X0
   void pwmSelect(boolean);
   void pwmConfig(byte, byte, byte, byte);
   void pwmConfig(uint8_t, uint8_t);
-  
+
   byte __getPortDirection(uint8_t);
-  byte __getIntMask(uint8_t);
+
   byte __getInvStates(uint8_t);
+  byte _getInversionGroup(uint8_t);
+  boolean getInversion(pin_t);
+  boolean getInversion(uint8_t);
+  boolean getInversion(uint8_t, uint8_t);
+  void __invert(uint8_t);
+  void _invert(uint8_t, uint8_t);
+  void invertGroup(uint8_t,byte=0x02);
+  void invert(pin_t)
+  void invert(uint8_t, uint8_t);
+  void invert(uint8_t);
+
+
+
   byte __getDivider();
   byte __getOutput(uint8_t);
   byte __getInput(uint8_t);
