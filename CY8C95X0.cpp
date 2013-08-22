@@ -105,7 +105,8 @@ pin_t CY8C95X0::pinTranslate(uint8_t pinIn)
 {
   /* We need to compensate for group 2 */
   pin_t pin = {255,255};
-  if((pinIn + 1) > pin_c) { return pin; }//If pin is outside values, exit.
+  if((pinIn + 1) > pin_c) return pin; //If pin is outside values, exit.
+
   if(pinIn > 19) pinIn += 4; //Since port 2 only has a nibble, we need to jump ahead after that point
   pin.pin = byte(pinIn % 8); //set pin
   pin.group = byte(pinIn / 8); //set pin group
@@ -245,7 +246,7 @@ byte CY8C95X0::__getPortDirection(uint8_t group)
   return tmp;
 }
 
-/* Get port interrupt masks */
+/* Get port interrupts */
 byte CY8C95X0::__interrupt(uint8_t group)
 {
   __portSelect(group);
@@ -258,7 +259,7 @@ byte CY8C95X0::__interrupt(uint8_t group)
 /* Get port interrupts for a group */
 byte CY8C95X0::_interrupt(uint8_t group)
 {
-  if(group >= group_c) return tmp;
+  if(group >= group_c) return 0x00;
   return __interrupt(group);
 }
 
@@ -276,13 +277,43 @@ boolean CY8C95X0::interrupt(pin_t pin)
 boolean CY8C95X0::interrupt(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group, pin};
-  return (tmp);
+  return (interrupt(tmp));
 }
 
 /* by raw pin number */
 boolean CY8C95X0::interrupt(uint8_t pin)
 {
   return interrupt(pinTranslate(pin));
+}
+
+byte CY8C95X0::__getInterruptMask(uint8_t group)
+{
+  __portSelect(group);
+  rawWrite(1, REG_INT_MASK);
+  Wire.requestFrom(address, uint8_t(1));
+  if(Wire.available()) return Wire.read();
+  return 0x00;
+}
+
+byte CY8C95X0::_getInterruptMask(uint8_t group)
+{
+  if(group >= group_c) return 0x00;
+  return __getInterruptMask(group);
+}
+boolean CY8C95X0::getInterruptMask(pin_t pin)
+{
+  byte tmp = __getInterruptMask(pin.group);
+  return (tmp & (1 << pin.pin));
+//return (__getInterruptMask(pin.group) & (1 << pin.pin));
+}
+boolean CY8C95X0::getInterruptMask(uint8_t group, uint8_t pin)
+{
+  pin_t tmp = {group, pin};
+  return getInterruptMask(tmp);
+}
+boolean CY8C95X0::getInterruptMask(uint8_t pin)
+{
+  return getInterruptMask(pinTranslate(pin));
 }
 
 /* Get port inversion states */
@@ -298,7 +329,7 @@ byte CY8C95X0::__getInvStates(uint8_t group)
 
 /* Everybody in this world is just like me. */
 /* Get inversion states for a whole group */
-byte CY8C95X0::getInversionGroup(uint8_t group)
+byte CY8C95X0::_getInversionGroup(uint8_t group)
 {
   if(group >= group_c) return 0x00;
   return __getInvStates(group);
@@ -307,7 +338,7 @@ byte CY8C95X0::getInversionGroup(uint8_t group)
 boolean CY8C95X0::getInversion(pin_t pin)
 {
   boolean tmp = false;
-  tmp = getInvStates(pin.group) & (1 << pin.pin);
+  tmp = __getInvStates(pin.group) & (1 << pin.pin);
   return tmp;
 }
 
@@ -338,6 +369,7 @@ void CY8C95X0::_invert(uint8_t group, uint8_t pins)
 
 /* This can either set all pins to inverting, turn off inverting,
  * or invert the current inverting 
+ * The default is 0x01, All pins to be inverting
  */
 void CY8C95X0::invertGroup(uint8_t group, byte mode)
 {
@@ -346,9 +378,8 @@ void CY8C95X0::invertGroup(uint8_t group, byte mode)
   else
   {
     if(group >= group_c) return; //We can't have someone addressing out of bounds
-    byte pins = invstates[group];
-    //Invert the pins
-    //Write it to invstates, and _invert
+    invstates[group] ^= 0xFF;
+    _invert(group,invstates[group]);
   }
 }
 
@@ -376,11 +407,11 @@ void CY8C95X0::invert(pin_t pin, byte mode)
   }
   _invert(pin.group,invstates[pin.group]);
 }
-$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
 void CY8C95X0::invert(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group,pin};
-  invert(pins);
+  invert(tmp);
 }
 
 void CY8C95X0::invert(uint8_t pin)
@@ -391,22 +422,22 @@ void CY8C95X0::invert(uint8_t pin)
 /*Toggle the inversion on a single pin */
 void CY8C95X0::invertT(uint8_t pin)
 {
-  invert(pinTranslate(pin),2);
+  invert(pinTranslate(pin),0x02);
 }
 void CY8C95X0::invertT(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group,pin};
-  invert(tmp,2);
+  invert(tmp,0x02);
 }
 /* Turn inversion off for a pin */
 void CY8C95X0::invertOff(uint8_t pin)
 {
-  invert(pinTranslate(pin),0);
+  invert(pinTranslate(pin),0x00);
 }
 void CY8C95X0::invertOff(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group,pin};
-  invert(tmp,0);
+  invert(tmp,0x00);
 }
 
 
@@ -447,7 +478,7 @@ void CY8C95X0::__getConfig()
   for(int i = 0; i < group_c; i++)
   {
     pindirections[i] = __getPortDirection(i);
-    intstates[i] = __getIntMask(i);
+    intstates[i] = __getInterruptMask(i);
     pwmstates[i] = __getPortPWM(i);
     drivestates[i] = __getDrive(i);
     invstates[i] = __getInvStates(i);
@@ -758,6 +789,7 @@ boolean CY8C95X0::digitalRead(uint8_t pin)
 
 /* Almost like the arduino method, just easier for this chip, because the
  * datasheet doesn't relate port numbers the same way.
+ */
 boolean CY8C95X0::digitalRead(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group, pin};

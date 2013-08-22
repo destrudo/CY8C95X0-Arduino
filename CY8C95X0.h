@@ -73,14 +73,13 @@ class CY8C95X0
   void __getConfig();
   void __portSelect(byte);
 
-//All of these need to be renamed
+
+  /* Most of these are untested */
   byte __interrupt(uint8_t);
   byte _interrupt(uint8_t);
   boolean interrupt(pin_t);
   boolean interrupt(uint8_t); 
   boolean interrupt(uint8_t, uint8_t);
-//Get Interrupt 'done' above, misnamed 'mask'
-//Need to write Get and write interrupt mask functions
   byte __getInterruptMask(uint8_t);
   byte _getInterruptMask(uint8_t);
   boolean getInterruptMask(pin_t);
@@ -112,6 +111,7 @@ class CY8C95X0
 
   byte __getPortDirection(uint8_t);
 
+  /* Most of these are untested */
   byte __getInvStates(uint8_t);
   byte _getInversionGroup(uint8_t);
   boolean getInversion(pin_t);
@@ -119,11 +119,14 @@ class CY8C95X0
   boolean getInversion(uint8_t, uint8_t);
   void __invert(uint8_t);
   void _invert(uint8_t, uint8_t);
-  void invertGroup(uint8_t,byte=0x02);
-  void invert(pin_t)
+  void invertGroup(uint8_t,byte=0x01);
+  void invert(pin_t, byte=0x01);
   void invert(uint8_t, uint8_t);
   void invert(uint8_t);
-
+  void invertOff(uint8_t, uint8_t);
+  void invertOff(uint8_t);
+  void invertT(uint8_t);
+  void invertT(uint8_t, uint8_t);
 
 
   byte __getDivider();
