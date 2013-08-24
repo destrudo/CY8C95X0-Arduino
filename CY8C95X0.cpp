@@ -693,11 +693,9 @@ void CY8C95X0::__digitalH(byte command, byte pins)
 /* pin_t in this function is used to specify a /particular/ pin, not all of the pins */
 void CY8C95X0::_digitalWrite(pin_t pin, boolean mode)
 {
-  byte command = 0;
-  command = (REG_GO0 + pin.group);
   if(mode == HIGH) pinstates[pin.group] |= 1 << pin.pin; //If high, set the bit
   if(mode == LOW) pinstates[pin.group] &= ~(1 << pin.pin); //If low, clear the bit
-  __digitalH(command,pinstates[pin.group]); //Digitalwrite doesn't need to select any port, just directly write away.
+  __digitalH((REG_GO0 + pin.group),pinstates[pin.group]); //Digitalwrite doesn't need to select any port, just directly write away.
 }
 
 
