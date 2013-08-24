@@ -695,22 +695,8 @@ void CY8C95X0::_digitalWrite(pin_t pin, boolean mode)
 {
   byte command = 0;
   command = (REG_GO0 + pin.group);
-  // switch(pin.group)
-  // {
-    // case PIN_G0: command = REG_GO0; break;
-    // case PIN_G1: command = REG_GO1; break;
-    // case PIN_G2: command = REG_GO2; break;
-    // case PIN_G3: command = REG_GO3; break;
-    // case PIN_G4: command = REG_GO4; break;
-    // case PIN_G5: command = REG_GO5; break;
-    // case PIN_G6: command = REG_GO6; break;
-    // case PIN_G7: command = REG_GO7; break;
-    // default: return;
-  // }
   if(mode == HIGH) pinstates[pin.group] |= 1 << pin.pin; //If high, set the bit
   if(mode == LOW) pinstates[pin.group] &= ~(1 << pin.pin); //If low, clear the bit
-  Serial.print("_digitalWrite sending command: ");
-  Serial.println(pinstates[pin.group],BIN);
   __digitalH(command,pinstates[pin.group]); //Digitalwrite doesn't need to select any port, just directly write away.
 }
 
@@ -719,14 +705,8 @@ void CY8C95X0::_digitalWrite(pin_t pin, boolean mode)
 /* Sets pins as inputs or outputs, accepts a pin type */
 void CY8C95X0::_pinMode(pin_t pin, boolean mode)
 {
-  Serial.print("PinMode in: ");
-  Serial.print(pin.pin);
-  Serial.print("Beginning pinstates: ");
-  Serial.println(pinstates[pin.group],BIN);
   if(mode == INPUT) pinstates[pin.group] |= (1 << pin.pin); //If high, set the bit
   else pinstates[pin.group] &= ~(1 << pin.pin); //If low, clear the bit
-  Serial.print("_pinMode set to: ");
-  Serial.println(pinstates[pin.group],BIN);
   __portSelect(pin.group); //Call the port
   __pinDirection(pinstates[pin.group]); //Set the data
 }
@@ -793,16 +773,8 @@ boolean CY8C95X0::_digitalRead(pin_t pin)
 {
   byte tmp;
   rawWrite(1, REG_GI0 + pin.group);
-  Serial.print("Pin: ");
-  Serial.println(pin.pin);
-  Serial.print("Group: ");
-  Serial.println(pin.group);
   Wire.requestFrom(address, uint8_t(1));
   if(Wire.available()) tmp = Wire.read();
-  Serial.print("Status of pins: ");
-  Serial.println(tmp,BIN);
-  Serial.print("Status of pin: ");
-  Serial.println(tmp & (0x01 << pin.pin));
   if((tmp & (1 << pin.pin)) >= 1) return HIGH;
   else return LOW;
 }
