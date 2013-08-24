@@ -127,7 +127,7 @@
   /* Misc defs */
   #define ALL_PINS 0xFF
   #define NO_PINS 0x00
-  
+  #define MAX_PIN 8
   
   struct pin_t {
     byte group;

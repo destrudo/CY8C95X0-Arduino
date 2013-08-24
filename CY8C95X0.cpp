@@ -420,10 +420,16 @@ void CY8C95X0::invertOff(uint8_t group, uint8_t pin)
    *****************/
    
    
-/* This function accepts a pin number and returns which pwm controller controls it */
+/* pinPWM(pin_t pin)
+ * This method accepts a pin type and returns the pwm controller for said pin.
+ * -It does run a sanity check on the pin.group and pin.pin values
+ * -At the moment, it only supports a matrix for the 60 pin model, but others
+ *  will be added at a later date.
+ */
 int CY8C95X0::pinPWM(pin_t pin)
 {
-  /* Note: This matrix does not support the other chips, and will need to have cases built to do so */
+  if( (pin.group >= group_c) || (pin.pin >= MAX_PIN) ) return;
+
   /* 60 pin pwm matrix
        P0   P1   P2   P3   P4   P5   P6   P7
   G0   7    5    3    1    7    5    3    1
@@ -435,7 +441,6 @@ int CY8C95X0::pinPWM(pin_t pin)
   G6   0    1    2    3    4    5    6    7
   G7   8    9    10   11   12   13   14   15
   */
-  /*This is a mess, but for ease of use... */
   byte level[8][8] = { {7,5,4,1,7,5,3,1},
                        {6,4,2,0,6,4,2,0},
                        {14,12,8,11,255,255,255,255}, 
@@ -446,7 +451,11 @@ int CY8C95X0::pinPWM(pin_t pin)
                        {8,9,10,11,12,13,14,15} };
   return level[pin.group][pin.pin];
 }
-/* Get pwm config settings */
+/* __getPWMConfig(uint8_t circuit)
+ * This method returns a pwm_t struct containing circuit pwm's settings
+ * -There is no software sanity check, however the hardware will likely not
+ * return sensible data if a circuit is used greater than the pwm_c variable
+ */
 pwm_t CY8C95X0::__getPWMConfig(uint8_t circuit)
 {
   pwm_t tmp;
@@ -457,7 +466,12 @@ pwm_t CY8C95X0::__getPWMConfig(uint8_t circuit)
   if(Wire.available()) tmp.pw = Wire.read();
   return tmp;
 }
-/* Get port pwm status */
+/* __getPortPWM(uint8_t group)
+ * This method returns a byte containing the currents pins with PWM enabled
+ * (The 1's) and the disabled (0's) pins within a given group. 
+ * -There are no sanity checks, but the hardware will react poorly to a group
+ * getting selected that is greater than group_c
+ */
 byte CY8C95X0::__getPortPWM(uint8_t group)
 {
   byte tmp;
@@ -467,19 +481,33 @@ byte CY8C95X0::__getPortPWM(uint8_t group)
   if(Wire.available()) tmp = Wire.read();
   return tmp;
 }
-/* This is a low-level function for handling pwm enabling/disabling
- * It writes a byte of pins to the device
+/* __pwmSelect(byte pins)
+ * This method does a simple write of the PWM Select command followed by a pin
+ * byte.
+ * -There is no sanity check
+ * -It does not call the port open, initiating this command alone will do nothing
+ * that anyone expects.
  */
 void CY8C95X0::__pwmSelect(byte pins)
 {
   rawWrite(2,REG_SEL_PWM_PORT_OUT,pins); //Send the command
 }
-//This is the pwm select register command
+/* __pwmConfigSelect(byte controller)
+ * This method is used to initiate a command write to the (controller) pwm
+ * controller for purposes of changing settings.
+ * -There is no sanity check, running this will result in the hardware waiting
+ * for further data (Hanging until another set of bytes comes along)
+ */
 void CY8C95X0::__pwmConfigSelect(byte controller)
 {
   rawWrite(2,REG_SEL_PWM,controller);
 }
-/* PWM Clock source setting register */
+/* __pwmClockSel(byte pwmController)
+ * This method is for initiating reading, or writing clock data from/to the 
+ * pwm (controller) set
+ * -There is no sanity check, the hardware will bug out if this is used without
+ * proper commands sent.
+ */
 void CY8C95X0::__pwmClockSel(byte pwmController)
 {
   rawWrite(2,REG_CONF_PWM,pwmController);
