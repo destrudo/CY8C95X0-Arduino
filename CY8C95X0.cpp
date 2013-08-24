@@ -694,47 +694,55 @@ void CY8C95X0::__digitalH(byte command, byte pins)
 void CY8C95X0::_digitalWrite(pin_t pin, boolean mode)
 {
   byte command = 0;
-  switch(pin.group)
-  {
-    case PIN_G0: command = REG_GO0; break;
-    case PIN_G1: command = REG_GO1; break;
-    case PIN_G2: command = REG_GO2; break;
-    case PIN_G3: command = REG_GO3; break;
-    case PIN_G4: command = REG_GO4; break;
-    case PIN_G5: command = REG_GO5; break;
-    case PIN_G6: command = REG_GO6; break;
-    case PIN_G7: command = REG_GO7; break;
-    default: return;
-  }
+  command = (REG_GO0 + pin.group);
+  // switch(pin.group)
+  // {
+    // case PIN_G0: command = REG_GO0; break;
+    // case PIN_G1: command = REG_GO1; break;
+    // case PIN_G2: command = REG_GO2; break;
+    // case PIN_G3: command = REG_GO3; break;
+    // case PIN_G4: command = REG_GO4; break;
+    // case PIN_G5: command = REG_GO5; break;
+    // case PIN_G6: command = REG_GO6; break;
+    // case PIN_G7: command = REG_GO7; break;
+    // default: return;
+  // }
   if(mode == HIGH) pinstates[pin.group] |= 1 << pin.pin; //If high, set the bit
   if(mode == LOW) pinstates[pin.group] &= ~(1 << pin.pin); //If low, clear the bit
+  Serial.print("_digitalWrite sending command: ");
+  Serial.println(pinstates[pin.group],BIN);
   __digitalH(command,pinstates[pin.group]); //Digitalwrite doesn't need to select any port, just directly write away.
 }
 
-/* lower level digital read */
-boolean CY8C95X0::_digitalRead(pin_t pin)
-{
-  byte tmp;
-  rawWrite(1, REG_GI0 + pin.group);
-  Wire.requestFrom(address, uint8_t(1));
-  if(Wire.available()) tmp = Wire.read();
-  if((tmp & (1 << pin.pin)) == 1) return HIGH;
-  else return LOW;
-}
+
 
 /* Sets pins as inputs or outputs, accepts a pin type */
 void CY8C95X0::_pinMode(pin_t pin, boolean mode)
 {
-  if(mode == INPUT) pinstates[pin.group] |= 1 << pin.pin; //If high, set the bit
+  Serial.print("PinMode in: ");
+  Serial.print(pin.pin);
+  Serial.print("Beginning pinstates: ");
+  Serial.println(pinstates[pin.group],BIN);
+  if(mode == INPUT) pinstates[pin.group] |= (1 << pin.pin); //If high, set the bit
   else pinstates[pin.group] &= ~(1 << pin.pin); //If low, clear the bit
+  Serial.print("_pinMode set to: ");
+  Serial.println(pinstates[pin.group],BIN);
   __portSelect(pin.group); //Call the port
   __pinDirection(pinstates[pin.group]); //Set the data
 }
 
 void CY8C95X0::_pwmSelect(pin_t pin, boolean mode)
 {
-  if(mode == HIGH) pwmstates[pin.group] |= 1 << pin.pin;
-  else pwmstates[pin.group] &= ~(1 << pin.pin);
+  if(mode == HIGH)
+  {
+    pwmstates[pin.group] |= 1 << pin.pin;  //Set the PWM state local 'register'
+	pinstates[pin.group] |= 1 << pin.pin;  //Set the pinstates local 'register' so that if another digitalWrite occurs, our pwm isn't reset.
+  }
+  else
+  {
+    pwmstates[pin.group] &= ~(1 << pin.pin);
+	pinstates[pin.group] &= ~(1 << pin.pin);
+  }
   __portSelect(pin.group);
   __pwmSelect(pwmstates[pin.group]);
 }
@@ -780,6 +788,24 @@ void CY8C95X0::pwmConfig(byte circuit, byte duty)
   _pwmConfig(circuit, duty);
 }
 
+/* lower level digital read */
+boolean CY8C95X0::_digitalRead(pin_t pin)
+{
+  byte tmp;
+  rawWrite(1, REG_GI0 + pin.group);
+  Serial.print("Pin: ");
+  Serial.println(pin.pin);
+  Serial.print("Group: ");
+  Serial.println(pin.group);
+  Wire.requestFrom(address, uint8_t(1));
+  if(Wire.available()) tmp = Wire.read();
+  Serial.print("Status of pins: ");
+  Serial.println(tmp,BIN);
+  Serial.print("Status of pin: ");
+  Serial.println(tmp & (0x01 << pin.pin));
+  if((tmp & (1 << pin.pin)) >= 1) return HIGH;
+  else return LOW;
+}
 
 //Exactly like the arduino method
 boolean CY8C95X0::digitalRead(uint8_t pin)
@@ -798,8 +824,7 @@ boolean CY8C95X0::digitalRead(uint8_t group, uint8_t pin)
 /* This works quite the same way as digitalwrite */
 void CY8C95X0::digitalWrite(uint8_t pinIn, boolean mode)
 {
-  pin_t pin_v = pinTranslate(pinIn);
-  _digitalWrite(pin_v,mode);
+  _digitalWrite(pinTranslate(pinIn),mode);
 }
 //In case you want to set it the more datasheet translatable way
 void CY8C95X0::digitalWrite(byte groupIn, byte pinIn, boolean mode)
