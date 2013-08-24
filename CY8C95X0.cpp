@@ -383,7 +383,7 @@ void CY8C95X0::invertGroup(uint8_t group, byte mode)
   }
 }
 
-/* Set a pin to have inverse output */
+/* Set a pin to have inverse input */
 /* There are modes allowed only in this function
  * which accepts a pin type.
  * 0 = turn off
@@ -595,34 +595,23 @@ void CY8C95X0::__driveSelect(byte pins, byte mode)
  */
 void CY8C95X0::_driveSelectPin(pin_t pin, byte mode)
 {
+  if( (mode <= REG_DM_PU) && (mode >= REG_DM_HIZ) ) return; //If the mode handed to us is out of range, return without doing anything.
   byte tmp;
-  switch(mode)
-  {
-    case 0:
-      tmp = drivestates[pin.group].pullup;
-      break;
-    case 1:
-      tmp = drivestates[pin.group].pulldown;
-      break;
-    case 2:
-      tmp = drivestates[pin.group].odhigh;
-      break;
-    case 3:
-      tmp = drivestates[pin.group].odlow;
-      break;
-    case 4:
-      tmp = drivestates[pin.group].strong;
-      break;
-    case 5:
-      tmp = drivestates[pin.group].slow;
-      break;
-    case 6:
-      tmp = drivestates[pin.group].hiz;
-      break;
-  }
+  if(mode == REG_DM_PU) tmp = drivestates[pin.group].pullup;
+  else if(mode == REG_DM_PD) tmp = drivestates[pin.group].pulldown;
+  else if(mode == REG_DM_ODH) tmp = drivestates[pin.group].odhigh;
+  else if(mode == REG_DM_ODL) tmp = drivestates[pin.group].odlow;
+  else if(mode == REG_DM_STRONG) tmp = drivestates[pin.group].strong;
+  else if(mode == REG_DM_SLOW) tmp = drivestates[pin.group].slow;
+  else tmp = drivestates[pin.group].hiz;
   //Modify the single pin
   tmp |= 1 << pin.pin;
   
+  /* I don't like the next statement, but it doesn't seem to me that
+   * anyone would want to constantly change drive modes.  If I'm wrong,
+   * the math isn't that hard to switch out so that we have local state
+   * math done, rather than hitting up the i2c bus.
+   */
   drivestates[pin.group] = __getDrive(pin.group); //Re-read the groups drive states
   //Call the port
   __portSelect(pin.group);

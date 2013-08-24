@@ -75,6 +75,14 @@
   #define REG_CMD_READ 0x06
   #define REG_CMD_RECONF 0x07
   
+  /* Drive modes (For obvious easy user) */
+  #define DRIVE_PULLUP 0x1D //Drive mode pull up
+  #define DRIVE_PULLDOWN 0x1E //Drive mode pull down
+  #define DRIVE_OPENHIGH 0x1F //Drive mode open drain high
+  #define DRIVE_OPENLOW 0x20 //Drive mode open drain low
+  #define DRIVE_STRONG 0x21 //Drive mode strong
+  #define DRIVE_SLOW 0x22 //Drive mode slow strong
+  #define DRIVE_HIZ 0x23 //Drive mode High-Z
   
   /* Pin group register mapping */
   /* Input */
