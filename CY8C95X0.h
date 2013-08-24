@@ -56,15 +56,16 @@ class CY8C95X0
   byte pindirections[8]; //State of pin directions
   pwm_t pwmconf[16]; //PWM configuration (per-channel)
   byte divider;
-  byte enable;
-  byte CRC;
-  byte groupmodes; //Mode of each group, 0 is output, 1 is input, on a bit-by-bit basis
+  //byte enable; //Unused, chip uses it to restrict writes to the chip eeprom among other things
+  //byte CRC; //Unused CRC, maybe later
+  //byte groupmodes; //Mode of each group, 0 is output, 1 is input, on a bit-by-bit basis  //Unused group modeset, will likely be pulled.
   byte address; //Device address
   
  public:
   CY8C95X0(uint8_t, uint8_t = 0);
   CY8C95X0();
   void begin(uint8_t, uint8_t = 0);
+  
   pin_t pinTranslate(uint8_t);
   void resetChip();
   boolean validPort(byte);
@@ -72,9 +73,14 @@ class CY8C95X0
   void rawWrite(int, ...);
   void __getConfig();
   void __portSelect(byte);
+  byte __getDivider();
+  byte __getOutput(uint8_t);
+  byte __getInput(uint8_t);
 
-
-  /* Most of these are untested */
+  /* these are untested */
+  /***********************
+   * Interrupt functions *
+   ***********************/
   byte __interrupt(uint8_t);
   byte _interrupt(uint8_t);
   boolean interrupt(pin_t);
@@ -91,27 +97,9 @@ class CY8C95X0
   void interruptMask(uint8_t, uint8_t);
   void interruptMask(uint8_t);
 
-  int pinPWM(pin_t);
-  pwm_t __getPWMConfig(uint8_t);
-  byte __getPortPWM(uint8_t);
-  void __pwmSelect(byte);
-  void __pwmConfigSelect(byte);
-  void __pwmClockSel(byte);
-  void __pwmConfigPeriod(byte);
-  void __pwmConfigPulseWidth(byte);
-  void __pwmConfigDivider(byte);
-  void _pwmConfig(byte, byte, byte = 0xFF);
-  void _pwmConfig(byte, byte, byte, byte);
-  void _pwmSelect(pin_t, boolean);
-  void pwmSelect(uint8_t, boolean);
-  void pwmSelect(uint8_t, uint8_t, boolean);
-  void pwmSelect(boolean);
-  void pwmConfig(byte, byte, byte, byte);
-  void pwmConfig(uint8_t, uint8_t);
-
-  byte __getPortDirection(uint8_t);
-
-  /* Most of these are untested */
+  /*****************************
+   * Input Inversion Functions *
+   *****************************/
   byte __getInvStates(uint8_t);
   byte _getInversionGroup(uint8_t);
   boolean getInversion(pin_t);
@@ -123,16 +111,39 @@ class CY8C95X0
   void invert(pin_t, byte=0x01);
   void invert(uint8_t, uint8_t);
   void invert(uint8_t);
-  void invertOff(uint8_t, uint8_t);
-  void invertOff(uint8_t);
   void invertT(uint8_t);
   void invertT(uint8_t, uint8_t);
+  void invertOff(uint8_t, uint8_t);
+  void invertOff(uint8_t);
 
-
-  byte __getDivider();
-  byte __getOutput(uint8_t);
-  byte __getInput(uint8_t);
+  /*****************
+   * PWM functions *
+   *****************/
+  int pinPWM(pin_t);
+  /* Low level, consider making private */
+  pwm_t __getPWMConfig(uint8_t);
+  byte __getPortPWM(uint8_t);
+  void __pwmSelect(byte);
+  void __pwmConfigSelect(byte);
+  void __pwmClockSel(byte);
+  void __pwmConfigPeriod(byte);
+  void __pwmConfigPulseWidth(byte);
+  void __pwmConfigDivider(byte);
+  void _pwmConfig(byte, byte, byte = 0xFF);
+  void _pwmConfig(byte, byte, byte, byte);
+  void _pwmSelect(pin_t, boolean);
+  void pwmConfig(byte, byte, byte, byte);
+  void pwmConfig(uint8_t, uint8_t);
+  void pwmSelect(uint8_t, boolean);
+  void pwmSelect(uint8_t, uint8_t, boolean);
+  void pwmSelect(boolean);
+  void analogWrite(pin_t, uint8_t);
+  void analogWrite(byte, byte, uint8_t);
+  void analogWrite(uint8_t, uint8_t);
   
+  /************************
+   * Drive mode functions *
+   ************************/
   drive_t __getDrive(uint8_t);
   void __driveSelect(byte, byte); //pins byte, mode
   void _driveSelectPin(pin_t, byte); //pin, mode
@@ -140,24 +151,28 @@ class CY8C95X0
   void driveSelectGroup(uint8_t, byte); //group, mode
   void driveMode(uint8_t, byte);
 
-  void __digitalH(byte, byte);
-  void _digitalWrite(pin_t, boolean);
-  boolean _digitalRead(pin_t);  
-
+  /***************************
+   * Pin direction functions *
+   ***************************/
+  byte __getPortDirection(uint8_t);
   void __pinDirection(byte);
   void _pinMode(pin_t, boolean);
+  void pinMode(uint8_t, boolean);
+  void pinMode(byte, byte, boolean);
   
+  /*****************
+   * I/O Functions *
+   *****************/
+  void __digitalH(byte, byte);
+  boolean _digitalRead(pin_t);  
   boolean digitalRead(uint8_t);
   boolean digitalRead(uint8_t, uint8_t);
+  
+  void _digitalWrite(pin_t, boolean);
   void digitalWrite(uint8_t, boolean);
   void digitalWrite(byte, byte, boolean);
   void digitalWrite(boolean);
-  void pinMode(uint8_t, boolean);
-  void pinMode(byte, byte, boolean);
-  void analogWrite(pin_t, uint8_t);
-  void analogWrite(byte, byte, uint8_t);
-  void analogWrite(uint8_t, uint8_t);
-  
+
 };
 
 #endif
