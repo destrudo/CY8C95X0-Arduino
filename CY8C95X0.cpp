@@ -300,17 +300,17 @@ boolean CY8C95X0::interrupt(uint8_t pin)
  /* __interruptMask(uint8_t group)
   * This method sets the interrupt mask for a given port
   */
- void CY8C95X0::__interruptMask(uint8_t group)
+ void CY8C95X0::__interruptMask(byte pins)
  {
-   rawWrite(2,REG_INT_MASK,group);
+   rawWrite(2,REG_INT_MASK,pins);
  }
  /* _interruptMask(uint8_t group, byte pin)
   */
-  void CY8C95X0::_interruptMask(uint8_t group, byte pin)
+  void CY8C95X0::_interruptMask(uint8_t group, byte pins)
   {
     if(group >= group_c) return;
     __portSelect(group);
-	__interruptMask(pin);
+	__interruptMask(pins);
   }
 /* interruptMask(pin_t pin)
  */
