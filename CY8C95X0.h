@@ -87,16 +87,16 @@ class CY8C95X0
   boolean interrupt(pin_t);
   boolean interrupt(uint8_t); 
   boolean interrupt(uint8_t, uint8_t);
+  void __interruptMask(uint8_t);
+  void _interruptMask(uint8_t, byte);
+  void interruptMask(pin_t, boolean);
+  void interruptMask(uint8_t, uint8_t, boolean);
+  void interruptMask(uint8_t, boolean);
   byte __getInterruptMask(uint8_t);
   byte _getInterruptMask(uint8_t);
   boolean getInterruptMask(pin_t);
   boolean getInterruptMask(uint8_t, uint8_t);
   boolean getInterruptMask(uint8_t);
-  void __interruptMask(uint8_t, byte);
-  void _interruptMask(uint8_t, byte);
-  void interruptMask(pin_t);
-  void interruptMask(uint8_t, uint8_t);
-  void interruptMask(uint8_t);
 
   /*****************************
    * Input Inversion Functions *

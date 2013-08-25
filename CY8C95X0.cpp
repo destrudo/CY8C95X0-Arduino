@@ -297,9 +297,46 @@ boolean CY8C95X0::interrupt(uint8_t pin)
 {
   return interrupt(pinTranslate(pin));
 }
-/* __getInterruptMask(uint8_t group)
- * Returns a byte of the current masks set on group
+ /* __interruptMask(uint8_t group)
+  * This method sets the interrupt mask for a given port
+  */
+ void CY8C95X0::__interruptMask(uint8_t group)
+ {
+   rawWrite(2,REG_INT_MASK,group);
+ }
+ /* _interruptMask(uint8_t group, byte pin)
+  */
+  void CY8C95X0::_interruptMask(uint8_t group, byte pin)
+  {
+    if(group >= group_c) return;
+    __portSelect(group);
+	__interruptMask(pin);
+  }
+/* interruptMask(pin_t pin)
  */
+  void CY8C95X0::interruptMask(pin_t pin, boolean mode)
+  {
+    if(mode == HIGH) intstates[pin.group] |= (1 << pin.pin);
+    else intstates[pin.group] &= ~(1 << pin.pin);
+	_interruptMask(pin.group,intstates[pin.group]);
+  }
+/* interruptMask(uint8_t group, uint8_t pin)
+ */
+  void CY8C95X0::interruptMask(uint8_t group, uint8_t pin, boolean mode)
+  {
+    pin_t pinIn = {group,pin};
+	interruptMask(pinIn, mode);
+  }
+/* interruptMask(uint8_t pin)
+ */
+  void CY8C95X0::interruptMask(uint8_t pin, boolean mode)
+  {
+    interruptMask(pinTranslate(pin),mode);
+  }
+ 
+/* __getInterruptMask(uint8_t group)
+ * This method Returns a byte of the current masks set on group
+ */ 
 byte CY8C95X0::__getInterruptMask(uint8_t group)
 {
   __portSelect(group);
