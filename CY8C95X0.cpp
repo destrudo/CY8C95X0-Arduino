@@ -591,48 +591,60 @@ void CY8C95X0::__pwmConfigSelect(byte controller)
 {
   rawWrite(2,REG_SEL_PWM,controller);
 }
+
+
+
+///////////////////////THIS IS WRONG/////////////////////////////////
+
 /* __pwmClockSel(byte pwmController)
  * This method is for initiating reading, or writing clock data from/to the 
  * pwm (controller) set
  * -There is no sanity check, the hardware will bug out if this is used without
  * proper commands sent.
  */
-void CY8C95X0::__pwmClockSel(byte pwmController)
+void CY8C95X0::__pwmClockSel(byte controller)
 {
-  rawWrite(2,REG_CONF_PWM,pwmController);
+  rawWrite(2,REG_CONF_PWM,controller);
 }
-/* PWM Period setting register */
+
+
+
+
+/* __pwmConfigPeriod(byte period)
+ * This method is used for sending period data to the previously selected
+ * controller
+ */
 void CY8C95X0::__pwmConfigPeriod(byte period)
 {
   rawWrite(2,REG_PERI_PWM,period);
 }
-/* PWM Pulse Width setting register */
+/* __pwmConfigPulseWidth(byte pulsewidth)
+ * This method is used for sending pulse width data to the previously selected
+ * controller
+ */
 void CY8C95X0::__pwmConfigPulseWidth(byte pulsewidth)
 {
   rawWrite(2,REG_PW_PWM,pulsewidth);
 }
-/* Programmable divider setting
- * Using this without understanding is a bad idea, it can mess with things in a bad way.
- * Its intent is for using the 00000100b setting on the pwm config to achieve custom frequencies
- * on the controller.  Problem is, it applies to all controllers.  So setting it will mess with
- * the other pwms.
- *
- * Here in the case that someone wants to use the programmable clock for some much-more-accurate
- * frequencies.
- *
- * I include no sanity check, you get to do that.
+/* __pwmConfigDivider(byte divider)
+ * This method is used for writing data to the divider register
+ * -Using this without understanding is a bad idea, it can mess with things in
+ * a bad way.  Its intent is for using the 00000100b setting on the pwm config
+ * to achieve custom frequencies on the controller.  Problem is, it applies to
+ * all controllers.  So setting it will mess with the other pwms.
  */
 void CY8C95X0::__pwmConfigDivider(byte divider)
 {
   rawWrite(2,REG_PROG_DIV,divider);
 }
-/* This is the non-complex pwm config function.
- * The period is a completely optional argument
- * since so few people will realistically need
- * a higher frequency than 130hz.  But incase
- * You need some math pointers,
- * 1khz = 0x22 to the register
- * 142hz = 0xF0, 2khz = 0x11, 435hz = 0x4F
+/* _pwmConfig(byte circuit, byte pwm, byte period)
+ * This method is used for configuring the pwm controllers
+ *
+ * -The period is a completely optional argument since so few people will 
+ * realistically need a higher frequency than 130hz.  But incase You need
+ * some math pointers:
+ *   1khz = 0x22 to the register
+ *   142hz = 0xF0, 2khz = 0x11, 435hz = 0x4F
  */
 void CY8C95X0::_pwmConfig(byte circuit, byte pw, byte period)
 {
@@ -653,11 +665,12 @@ void CY8C95X0::_pwmConfig(byte circuit, byte pw, byte period)
   __pwmConfigSelect(circuit);
   __pwmConfigPulseWidth(pwmconf[circuit].pw);
 }
-/* This is the complex pwm config function.
- * This accepts a clock source, a period, a pulse width, and a circuit.
- * There's no default anything here, they must all be set
- * Read the data sheet if you intend to use this, otherwise you'll regret
- * it just as I have.
+/* _pwmConfig(byte circuit, byte clock, byte period, byte pw)
+ * This method is for controlling the pwm circuits, including modification
+ * of the clock.
+ * -This accepts a clock source, a period, a pulse width, and a circuit.
+ * There's no default anything here, they must all be set.
+ * Read the data sheet if you intend to use this.
  */
 void CY8C95X0::_pwmConfig(byte circuit, byte clock, byte period, byte pw)
 {
@@ -670,49 +683,62 @@ void CY8C95X0::_pwmConfig(byte circuit, byte clock, byte period, byte pw)
   __pwmConfigSelect(circuit);
   __pwmConfigPulseWidth(pw);
 }
+/* _pwmSelect(pin_t pin, boolean mode)
+ * This method enables or disables the PWM circuits on a pin
+ */
 void CY8C95X0::_pwmSelect(pin_t pin, boolean mode)
 {
   if(mode == HIGH)
   {
     pwmstates[pin.group] |= 1 << pin.pin;  //Set the PWM state local 'register'
-	pinstates[pin.group] |= 1 << pin.pin;  //Set the pinstates local 'register' so that if another digitalWrite occurs, our pwm isn't reset.
+    pinstates[pin.group] |= 1 << pin.pin;  //Set the pinstates local 'register' so that if another digitalWrite occurs, our pwm isn't reset.
   }
   else
   {
     pwmstates[pin.group] &= ~(1 << pin.pin);
-	pinstates[pin.group] &= ~(1 << pin.pin);
+    pinstates[pin.group] &= ~(1 << pin.pin);
   }
   __portSelect(pin.group);
   __pwmSelect(pwmstates[pin.group]);
 }
-/* Modify everything */
+/* pwmConfig(byte circuit, byte clock, byte period, byte pw)
+ * This method handles configuration of a particular pwm circuit
+ * -The method sanity checks inputs
+ */
 void CY8C95X0::pwmConfig(byte circuit, byte clock, byte period, byte pw)
 {
-  //Sanity check the values
   if(circuit >= pwm_c) return;
   if(pw >= period) return;
   _pwmConfig(circuit, clock, period, pw);
 }
-/* Modify duty cycle only */
+/* pwmConfig(byte circuit, byte duty)
+ * This method modifies the duty cycle (Pulse width) of a pwm circuit
+ */
 void CY8C95X0::pwmConfig(byte circuit, byte duty)
 {
   if(circuit >= pwm_c) return; //If the circuit requested is higher than that on our chip, exit.
   if(duty >= pwmconf[circuit].period) return; //Pulse width, according to the datasheet, should always be less than the period by at least 1
   _pwmConfig(circuit, duty);
 }
-/* turn pwm on or off on a single pin */
+/* pwmSelect(uint8_t pinIn, boolean mode)
+ * This method turns off or on a pin's PWM mode
+ */
 void CY8C95X0::pwmSelect(uint8_t pinIn, boolean mode)
 {
   pin_t pin_v = pinTranslate(pinIn);
   _pwmSelect(pin_v, mode);
 }
-/* Turn pwm on or off for a single pin */
+/* pwmSelect(uint8_t group, uint8_t pinIn, boolean mode)
+ * This method turns off or on pwm for a complete group
+ */
 void CY8C95X0::pwmSelect(uint8_t group, uint8_t pinIn, boolean mode)
 {
   pin_t pinOut = {group,pinIn};
   _pwmSelect(pinOut, mode);
 }
-/* Sets all pins pwm mode on or off */
+/* pwmSelect(boolean mode)
+ * This method enables or disables pwm for all the pins on the device
+ */
 void CY8C95X0::pwmSelect(boolean mode)
 {
   for(int i = 0; i < group_c; i++)
@@ -722,16 +748,26 @@ void CY8C95X0::pwmSelect(boolean mode)
     else __pwmSelect(NO_PINS);
   }
 }
-/* Same as analogWrite */
+/* analogWrite(pin_t pin, uint8_t value)
+ * This method writes a duty cycle value to the pwm controller of the specified
+ * pin
+ * -It is the same as the analogWrite function inside arduino
+ */
 void CY8C95X0::analogWrite(pin_t pin, uint8_t value)
 {
   _pwmConfig(pinPWM(pin),value);
 }
+/* analogWrite(byte group, byte pin, uint8_t value)
+ * This method writes a duty cycle value to the pin in group's pwm controller
+ */
 void CY8C95X0::analogWrite(byte group, byte pin, uint8_t value)
 {
   pin_t tmp = {group, pin};
   _pwmConfig(pinPWM(tmp), value);
 }
+/* analogWrite(uint8_t pin, uint8_t value)
+ * This method writes a duty cycle value to the pin's pwm controller
+ */
 void CY8C95X0::analogWrite(uint8_t pin, uint8_t value)
 {
   _pwmConfig(pinPWM(pinTranslate(pin)),value);
@@ -742,8 +778,10 @@ void CY8C95X0::analogWrite(uint8_t pin, uint8_t value)
    * Drive mode functions *
    ************************/
 
-   
-/* get drive states for a group */
+
+/* __getDrive(uint8_t group)
+ * This method gets the drive modes of the specified group
+ */
 drive_t CY8C95X0::__getDrive(uint8_t group)
 {
   drive_t tmp;
@@ -759,18 +797,15 @@ drive_t CY8C95X0::__getDrive(uint8_t group)
   if(Wire.available()) tmp.hiz = Wire.read();
   return tmp;
 }
-
-/* This is a low-level function for handling pin driving modes across a whole group
+/* __driveSelect(byte pins, byte mode)
+ * This method sets drive modes for those active pins
  */
-//void CY8C95X0::__driveSelect(byte pins, byte mode)
 void CY8C95X0::__driveSelect(byte pins, byte mode)
 {
   rawWrite(2,mode,pins);
 }
-
-/* Handles a drive select on a single pin */
-/* We should really make it so that mode is the actual Register
- * so that we don't waste more space with the case scenarios
+/* _driveSelectPin(pin_t pin, byte mode)
+ * This method handles a drive select on a single pin
  */
 void CY8C95X0::_driveSelectPin(pin_t pin, byte mode)
 {
@@ -785,7 +820,7 @@ void CY8C95X0::_driveSelectPin(pin_t pin, byte mode)
   else tmp = drivestates[pin.group].hiz;
   //Modify the single pin
   tmp |= 1 << pin.pin;
-  
+
   /* I don't like the next statement, but it doesn't seem to me that
    * anyone would want to constantly change drive modes.  If I'm wrong,
    * the math isn't that hard to switch out so that we have local state
@@ -798,16 +833,8 @@ void CY8C95X0::_driveSelectPin(pin_t pin, byte mode)
   __driveSelect(tmp,mode);
 }
 
-/* This sets the drive mode, something very important if you're doing PWM
- * mode can be:
- * 0: Resistive pullup
- * 1: Resistive pulldown
- * 2: High open drain
- * 3: low open drain
- * 4: strong drive
- * 5: strong and slow drive
- * 6: High impedance
- * Arguments are <Bus (0-7)>, <Pin (0-7)> and 
+/* driveSelectAll(byte mode)
+ * This method sets the drive mode for all pins
  */
 void CY8C95X0::driveSelectAll(byte mode)
 {
@@ -817,16 +844,17 @@ void CY8C95X0::driveSelectAll(byte mode)
     __driveSelect(0xFF,mode);
   }
 }
-
-/* Handles drive selection setting for a whole group at once */
-void CY8C95X0::driveSelectGroup(uint8_t port, byte mode)
+/* driveSelectGroup(uint8_t group, byte mode)
+ * This method sets the drive mode for a whole pin group
+ */
+void CY8C95X0::driveSelectGroup(uint8_t group, byte mode)
 {
-  //call port group
-  __portSelect(port);
+  __portSelect(group);
   __driveSelect(0xFF,mode);
 }
-
-/* Changes driving mode for a single pin */
+/* driveMode(uint8_t pin, byte mode)
+ * This method changes drive mode for a single pin
+ */
 void CY8C95X0::driveMode(uint8_t pin, byte mode)
 {
   _driveSelectPin(pinTranslate(pin),mode);
@@ -838,7 +866,9 @@ void CY8C95X0::driveMode(uint8_t pin, byte mode)
    ***************************/
 
 
-/* Get port input/output mode */
+/* __getPortDirection(uint8_t group)
+ * This method returns a byte of the pinstates for a pin group
+ */
 byte CY8C95X0::__getPortDirection(uint8_t group)
 {
   byte tmp = 0;
@@ -848,11 +878,16 @@ byte CY8C95X0::__getPortDirection(uint8_t group)
   if(Wire.available()) tmp = Wire.read();
   return tmp;
 }
+/* __pinDirection(byte pins)
+ * This method writes the pin directions of a previously selected port
+ */
 void CY8C95X0::__pinDirection(byte pins)
 {
   rawWrite(2,REG_PIN_DIR,pins);
 }
-/* Sets pins as inputs or outputs, accepts a pin type */
+/* _pinMode(pin_t pin, boolean mode)
+ * This method sets a particular pin as an input or an output
+ */
 void CY8C95X0::_pinMode(pin_t pin, boolean mode)
 {
   if(mode == INPUT) pinstates[pin.group] |= (1 << pin.pin); //If high, set the bit
@@ -860,15 +895,21 @@ void CY8C95X0::_pinMode(pin_t pin, boolean mode)
   __portSelect(pin.group); //Call the port
   __pinDirection(pinstates[pin.group]); //Set the data
 }
-//Set pin as input or output the same as arduino
+/* pinMode(uint8_t pinIn, boolean mode)
+ * This method sets the direction/mode of a pin (INPUT/OUTPUT)
+ * -This replicates the functionality of arduino
+ */
 void CY8C95X0::pinMode(uint8_t pinIn, boolean mode)
 {
   _pinMode(pinTranslate(pinIn), mode);
 }
-void CY8C95X0::pinMode(byte groupIn, byte pinIn, boolean mode)
+/* pinMode(byte groupIn, byte pinIn, boolean mode)
+ * This method sets the direction/mode of a group/pin combination (INPUT/OUTPUT)
+ */
+void CY8C95X0::pinMode(uint8_t group, uint8_t pin, boolean mode)
 {
-  pin_t pin = {groupIn,pinIn};
-  _pinMode(pin, mode);
+  pin_t pinIn = {group,pin};
+  _pinMode(pinIn, mode);
 }
 
 
@@ -877,16 +918,16 @@ void CY8C95X0::pinMode(byte groupIn, byte pinIn, boolean mode)
    *****************/
 
 
-/* Digital Handler
- * Writes two bytes, where the first is the command (Starting point register) and the second is the
- * byte of pin status to be set
+/* __digitalH(byte command, byte pins)
+ * This method writes pin data to the device for output
  */
 void CY8C95X0::__digitalH(byte command, byte pins)
 {
   rawWrite(2,command,pins);
 }
-
-/* lower level digital read */
+/* _digitalRead(pin_t pin)
+ * This method reads the state of a pin
+ */
 boolean CY8C95X0::_digitalRead(pin_t pin)
 {
   byte tmp;
@@ -896,14 +937,17 @@ boolean CY8C95X0::_digitalRead(pin_t pin)
   if((tmp & (1 << pin.pin)) >= 1) return HIGH;
   else return LOW;
 }
-
-//Exactly like the arduino method
+/* digitalRead(uint8_t pin)
+ * This method reads the state of a pin
+ * -Identical to the arduino function
+ */
 boolean CY8C95X0::digitalRead(uint8_t pin)
 {
   return _digitalRead(pinTranslate(pin));
 }
-
-/* Almost like the arduino method, just easier for this chip, because the
+/* digitalRead(uint8_t group, uint8_t pin)
+ * This method reads the state of a pin
+ * -Almost like the arduino method, just easier for this chip, because the
  * datasheet doesn't relate port numbers the same way.
  */
 boolean CY8C95X0::digitalRead(uint8_t group, uint8_t pin)
@@ -912,26 +956,33 @@ boolean CY8C95X0::digitalRead(uint8_t group, uint8_t pin)
   return _digitalRead(tmp);
 }
 
-/* This low-level call enables or disables a particular pin */
-/* pin_t in this function is used to specify a /particular/ pin, not all of the pins */
-void CY8C95X0::_digitalWrite(pin_t pin, boolean mode)
+/* _digitalWrite(pin_t pin, boolean mode)
+ * This method writes a state to a pin
+ */
+void CY8C95X0::digitalWrite(pin_t pin, boolean mode)
 {
   if(mode == HIGH) pinstates[pin.group] |= 1 << pin.pin; //If high, set the bit
   if(mode == LOW) pinstates[pin.group] &= ~(1 << pin.pin); //If low, clear the bit
-  __digitalH((REG_GO0 + pin.group),pinstates[pin.group]); //Digitalwrite doesn't need to select any port, just directly write away.
+  __digitalH((REG_GO0 + pin.group),pinstates[pin.group]);
 }
-/* This works quite the same way as digitalwrite */
+/* digitalWrite(uint8_t pin, boolean mode)
+ * This method writes a state to a pin
+ */
 void CY8C95X0::digitalWrite(uint8_t pinIn, boolean mode)
 {
-  _digitalWrite(pinTranslate(pinIn),mode);
+  _digitalWrite(pinTranslate(pin),mode);
 }
-//In case you want to set it the more datasheet translatable way
-void CY8C95X0::digitalWrite(byte groupIn, byte pinIn, boolean mode)
+/* digitalWrite(uint8_t group, uint8_t pin, boolean mode)
+ * This method writes a state to a pin
+ */
+void CY8C95X0::digitalWrite(byte group, byte pin, boolean mode)
 {
-  pin_t pin_v = {groupIn,pinIn};
-  _digitalWrite(pin_v,mode);
-}    
-//This is for writing to every pin on the chip
+  pin_t pinIn = {group,pin};
+  _digitalWrite(pinIn,mode);
+}
+/* digitalWrite(boolean mode)
+ * This method writes a state to every pin on the device
+ */
 void CY8C95X0::digitalWrite(boolean mode)
 {
   //There is a faster way to do this, but for now, just iterate writes.

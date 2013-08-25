@@ -68,6 +68,7 @@ class CY8C95X0
   
   pin_t pinTranslate(uint8_t);
   void resetChip();
+  void saveChip();
   boolean validPort(byte);
   void resetRegister();
   void rawWrite(int, ...);
@@ -158,7 +159,7 @@ class CY8C95X0
   void __pinDirection(byte);
   void _pinMode(pin_t, boolean);
   void pinMode(uint8_t, boolean);
-  void pinMode(byte, byte, boolean);
+  void pinMode(uint8_t, uint8_t, boolean);
   
   /*****************
    * I/O Functions *
@@ -170,7 +171,7 @@ class CY8C95X0
   
   void _digitalWrite(pin_t, boolean);
   void digitalWrite(uint8_t, boolean);
-  void digitalWrite(byte, byte, boolean);
+  void digitalWrite(uint8_t, uint8_t, boolean);
   void digitalWrite(boolean);
 
 };
