@@ -183,7 +183,6 @@ void CY8C95X0::rawWrite(int cmds, ...)
  */
 void CY8C95X0::__getConfig()
 {
-  byte tmp = __getPortDirection(1);
   for(int i = 0; i < group_c; i++)
   {
     pindirections[i] = __getPortDirection(i);
@@ -517,7 +516,7 @@ void CY8C95X0::invertOff(uint8_t group, uint8_t pin)
  */
 int CY8C95X0::pinPWM(pin_t pin)
 {
-  if( (pin.group >= group_c) || (pin.pin >= MAX_PIN) ) return;
+  if( (pin.group >= group_c) || (pin.pin >= MAX_PIN) ) return 255;
 
   /* 60 pin pwm matrix
        P0   P1   P2   P3   P4   P5   P6   P7
@@ -959,7 +958,7 @@ boolean CY8C95X0::digitalRead(uint8_t group, uint8_t pin)
 /* _digitalWrite(pin_t pin, boolean mode)
  * This method writes a state to a pin
  */
-void CY8C95X0::digitalWrite(pin_t pin, boolean mode)
+void CY8C95X0::_digitalWrite(pin_t pin, boolean mode)
 {
   if(mode == HIGH) pinstates[pin.group] |= 1 << pin.pin; //If high, set the bit
   if(mode == LOW) pinstates[pin.group] &= ~(1 << pin.pin); //If low, clear the bit
@@ -968,7 +967,7 @@ void CY8C95X0::digitalWrite(pin_t pin, boolean mode)
 /* digitalWrite(uint8_t pin, boolean mode)
  * This method writes a state to a pin
  */
-void CY8C95X0::digitalWrite(uint8_t pinIn, boolean mode)
+void CY8C95X0::digitalWrite(uint8_t pin, boolean mode)
 {
   _digitalWrite(pinTranslate(pin),mode);
 }
