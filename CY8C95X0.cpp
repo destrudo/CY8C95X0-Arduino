@@ -29,23 +29,34 @@
 #include "CY8C95X0.h"
 #include "CY8C95X0_BASE.h"
 
+/* CY8C95X0()
+ * Default constructor method which does essentially nothing
+ * -The wire.begin command, as far as 1.01/3/5 are concerned, seems to be
+ * meaningless.  It's there because most libs call it, and if it's required
+ * for compat, I'd rather have it than not.
+ */
 CY8C95X0::CY8C95X0()
 {
   Wire.begin();
 }
 
-//chip is the rev of the chip (20,40,60) and A is the complete set of A's
-// ex: (20,011) for A0 and A1 set on a 20 i/o chip
+/* CY8C95X0(uint8_t chip, uint8_t A)
+ * This constructor actually calls begin() within it.
+ * -Use this if you're allocating it with the 'new' operator; but make sure 
+ * that it gets called AFTER Wire.begin() and your other libraries have 
+ * .begin()'d.  If not, Strange things will happen.
+ */
 CY8C95X0::CY8C95X0(uint8_t chip, uint8_t A)
 {
   CY8C95X0::begin(chip, A);
 }
 
-/* If you want to use the default constructor so that you aren't allocating the class (Intended for non-dynamic setups)
- * after ALL of your begin() functions are called, you'll need to call this.  MAKE SURE that if you want to dump serial
- * data over the UART, that you call Serial.begin() BEFORE this is called. */
- //chip is the rev of the chip (20,40,60) and A is the complete set of A's
-// ex: (20,011) for A0 and A1 set on a 20 i/o chip
+/* begin(uint8_t chip, uint8_t A)
+ * This method fills up our local variables with data
+ * -Address is set here, the A parameter which is the optional address is set.
+ *   *If your optional address is greater than 31 (If you're using the A5 pin)
+ *   you MUST state the COMPLETE 7 bit address in A
+ */
 void CY8C95X0::begin(uint8_t chip, uint8_t A)
 {
   address = CY8C95X0_ADDR;
@@ -53,13 +64,13 @@ void CY8C95X0::begin(uint8_t chip, uint8_t A)
   /* Address handling */
   if(A)
   {
-	if( A <= 31 ) address |= A; //Supposing you're setting those bits that are below A5, just OR the address with your address
-	else address = A; //If you're not, you might as well just set the whole address yourself, and I'll save myself some slight logic.
+    if( A <= 31 ) address |= A;
+    else address = A;
   }
-  
+
   /* Feel free to comment the next line out, I just prefer having it on */
   resetChip(); //Clear the chip's current config, roll back to defaults.
-  
+
   switch(chip)
   {
     case 20:
@@ -86,55 +97,55 @@ void CY8C95X0::begin(uint8_t chip, uint8_t A)
   // drivestates = new drive_t[group_c];
   // intstates = new byte[group_c];
   // invstates = new byte[group_c];
-  
-  /* Handle all the addresses */
-  
+
   __getConfig(); //Update the current config
 }
 
-/***********************************************************/
-/* GENERAL FUNCTIONS BEGIN (Internal math and computation) */
-/***********************************************************/
-
-/* To make life easier, this function translates a number to a pin
- * the pin argument is /always/ a two member byte array, it will
- * Not function properly, and will probably kill the chip if called
- * with anything else
- * This is really messy
+/* pinTranslate(uint8_t pin)
+ * This method translates a number to pin and returns a pin_t
+ * -If the pin is not found, it'll return a pin_t with group and pin set
+ * to 255
  */
 pin_t CY8C95X0::pinTranslate(uint8_t pinIn)
 {
-  /* We need to compensate for group 2 */
   pin_t pin = {255,255};
   if((pinIn + 1) > pin_c) return pin; //If pin is outside values, exit.
-
   if(pinIn > 19) pinIn += 4; //Since port 2 only has a nibble, we need to jump ahead after that point
   pin.pin = byte(pinIn % 8); //set pin
   pin.group = byte(pinIn / 8); //set pin group
   return pin;
 }
 
-/* This function resets the device to the programmed defaults
- * When the class is first constructed, it runs this, in order
- * to purge any bad settings (Were there any)
+/* resetChip()
+ * This method resets the chip to eeprom-stored defaults
  */
 void CY8C95X0::resetChip()
 {
-  //Run command to reset chip
   rawWrite(2, REG_CMD, REG_CMD_RESTORE);
   rawWrite(2, REG_CMD, REG_CMD_RECONF);
 }
 
-/* This determines whether or not the port that was entered was valid
- * It is used by the higher level functions
+/* saveChip()
+ * This method saves the current chip state to the eeprom
+ */
+void CY8C95X0::saveChip()
+{
+  //It's obvious at this point that this function does nothing at this moment
+  delay(1000);
+}
+
+/* validPort(byte port)
+ * This method returns a true/false value depending on whether or not 'port' is
+ * within the bounds of the chip
  */
 boolean CY8C95X0::validPort(byte port)
 {
    if( (port + 1) > group_c) return false;
    return true;
 }
-
-/* This is to simply reset the register pointer
+/* resetRegister()
+ * This method writes a 0 to the chip so that the next read or write will start
+ * at address 0x00
  */
 void CY8C95X0::resetRegister()
 {
@@ -143,14 +154,12 @@ void CY8C95X0::resetRegister()
   Wire.endTransmission();
 }
 
-/* LOW LEVEL FUNCTIONS BEGIN */
 /* rawWrite(int cmds, ...)
- * arguments:
- * -cmds is number of commands to be sent
- * -varable arguments will be written in order
- * ex: rawWrite(2, REG_PORT_SEL, 0x00) would select group port 0
- *
- * This is pretty low level, but if you need to do something I didn't
+ * This method writes any number of values to the device.
+ * -arguments:
+ *  *cmds is number of commands to be sent
+ *  *varable arguments will be written in order
+ * -This is pretty low level, but if you need to do something I didn't
  * provide, this is how.
  */
 void CY8C95X0::rawWrite(int cmds, ...)
@@ -169,7 +178,9 @@ void CY8C95X0::rawWrite(int cmds, ...)
   va_end(argList);
 }
 
-/* This function populates all of the controller data (pin modes, pwm modes, intterupt, pwm config) */
+/* __getConfig()
+ * This method populates most of the local variables with that stored on the chip
+ */
 void CY8C95X0::__getConfig()
 {
   byte tmp = __getPortDirection(1);
@@ -187,14 +198,19 @@ void CY8C95X0::__getConfig()
   }
 }
 
-/* This is a low-level function for handling port selection as detailed in the datasheet */
+/* _portSelect(byte port)
+ * This method writes a command to the chip which sets port in the port select
+ * register
+ */
 void CY8C95X0::__portSelect(byte port)
 {
-  if(!validPort(port)) return; //If the port specified is out of our range, exit
+  if(!validPort(port)) return; //Return if port out of range
   rawWrite(2,REG_PORT_SEL,port);
 }
 
-/* Get the divider value */
+/* __getDivider()
+ * This method returns the divider value which is stored on the chip
+ */
 byte CY8C95X0::__getDivider()
 {
   byte tmp;
@@ -204,7 +220,9 @@ byte CY8C95X0::__getDivider()
   return tmp;
 }
 
-/* Get output register values */
+/* __getOutput(uint8_t group)
+ * This method gets the current state of group's output register
+ */
 byte CY8C95X0::__getOutput(uint8_t group)
 {
   byte tmp;
@@ -214,7 +232,9 @@ byte CY8C95X0::__getOutput(uint8_t group)
   return tmp;
 }
 
-/* Get input register values */
+/* __getInput(uint8_t group)
+ * This method gets the current state of the group's input register
+ */
 byte CY8C95X0::__getInput(uint8_t group)
 {
   byte tmp;
@@ -230,8 +250,9 @@ byte CY8C95X0::__getInput(uint8_t group)
    * Interrupt functions *
    ***********************/
 
-   
-/* Get port interrupts */
+/* __interrupt(uint8_t group)
+ * This method returns the current interrupt status of a port's pins
+ */
 byte CY8C95X0::__interrupt(uint8_t group)
 {
   __portSelect(group);
@@ -240,14 +261,19 @@ byte CY8C95X0::__interrupt(uint8_t group)
   if(Wire.available()) return Wire.read();
   return 0;
 }
-/* Get port interrupts for a group */
+/* _interrupt(uint8_t group)
+ * This method returns the current interrupt status of a port's pins
+ * -This function verifies that the group given is sane, and then calls
+ * the __interrupt function
+ */
 byte CY8C95X0::_interrupt(uint8_t group)
 {
   if(group >= group_c) return 0x00;
   return __interrupt(group);
 }
-/* The following 3 functions return a boolean which is the
- * interrupt status on a particular pin
+/* interrupt(pin_t pin)
+ * This method returns a boolean state which is the interrupt status of
+ * the parameter pin.
  */
 boolean CY8C95X0::interrupt(pin_t pin)
 {
@@ -255,17 +281,26 @@ boolean CY8C95X0::interrupt(pin_t pin)
   tmp = __interrupt(pin.group) & (1 << pin.pin);
   return tmp;
 }
-/* by a group/pin combo */
+/* interrupt(uint8_t group, uint8_t pin)
+ * This method returns a boolean state which is the interrupt status of
+ * the parameter pin in group group.
+ */
 boolean CY8C95X0::interrupt(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group, pin};
   return (interrupt(tmp));
 }
-/* by raw pin number */
+/* interrupt(uint8_t pin)
+ * This method returns a boolean state which is the interrupt status of
+ * the parameter pin
+ */
 boolean CY8C95X0::interrupt(uint8_t pin)
 {
   return interrupt(pinTranslate(pin));
 }
+/* __getInterruptMask(uint8_t group)
+ * Returns a byte of the current masks set on group
+ */
 byte CY8C95X0::__getInterruptMask(uint8_t group)
 {
   __portSelect(group);
@@ -274,22 +309,38 @@ byte CY8C95X0::__getInterruptMask(uint8_t group)
   if(Wire.available()) return Wire.read();
   return 0x00;
 }
+/* _getInterruptMask(uint8_t group)
+ * Returns a byte of the current masks set on a group
+ * -This function performs a sanity check on the group
+ */
 byte CY8C95X0::_getInterruptMask(uint8_t group)
 {
   if(group >= group_c) return 0x00;
   return __getInterruptMask(group);
 }
+/* getInterruptMask(pin_t pin)
+ * This method returns a boolean state which is that of the pin's
+ * current interrupt mask
+ */
 boolean CY8C95X0::getInterruptMask(pin_t pin)
 {
   byte tmp = __getInterruptMask(pin.group);
   return (tmp & (1 << pin.pin));
 //return (__getInterruptMask(pin.group) & (1 << pin.pin));
 }
+/* getInterruptMask(uint8_t group, uint8_t pin)
+ * This method returns a boolean state which is that of the pin's
+ * current interrupt mask
+ */
 boolean CY8C95X0::getInterruptMask(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group, pin};
   return getInterruptMask(tmp);
 }
+/* getInterruptMask(uint8_t pin)
+ * This method returns a boolean state which is that of the pin's
+ * current interrupt mask
+ */
 boolean CY8C95X0::getInterruptMask(uint8_t pin)
 {
   return getInterruptMask(pinTranslate(pin));
@@ -300,8 +351,10 @@ boolean CY8C95X0::getInterruptMask(uint8_t pin)
    * Input Inversion Functions *
    *****************************/
 
-   
-/* Get port inversion states */
+/* __getInvStates(uint8_t group)
+ * This method returns a byte which is the current input inversion
+ * state of the port.
+ */
 byte CY8C95X0::__getInvStates(uint8_t group)
 {
   byte tmp;
@@ -312,42 +365,63 @@ byte CY8C95X0::__getInvStates(uint8_t group)
   return tmp;
 }
 /* Everybody in this world is just like me. */
-/* Get inversion states for a whole group */
+/* _getInversionGroup(uint8_t group)
+ * This method returns the inversion state of the group
+ * -Performs a sanity check on the input group
+ */
 byte CY8C95X0::_getInversionGroup(uint8_t group)
 {
   if(group >= group_c) return 0x00;
   return __getInvStates(group);
 }
+/* getInversion(pin_t pin)
+ * This method returns the inversion state of a particular pin
+ */
 boolean CY8C95X0::getInversion(pin_t pin)
 {
   boolean tmp = false;
   tmp = __getInvStates(pin.group) & (1 << pin.pin);
   return tmp;
 }
+/* getInversion(uint8_t group, uint8_t pin)
+ * This method returns the inversion state of a particular pin
+ */
 boolean CY8C95X0::getInversion(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group,pin};
   return getInversion(tmp);
 }
+/* getInversion(uint8_t pin)
+ * This method returns the inversion state of a particular pin
+ */
 boolean CY8C95X0::getInversion(uint8_t pin)
 {
   return getInversion(pinTranslate(pin));
 }
-/* High level pin invert (Just calls the register alone) */
-void CY8C95X0::__invert(uint8_t pins)
+/* __invert(uint8_t group)
+ * This method is a raw value write to the device to invert
+ * the pins of a selected group
+ */
+void CY8C95X0::__invert(uint8_t group)
 {
-  rawWrite(2,REG_INVERSION,pins);
+  rawWrite(2,REG_INVERSION,group);
 }
-/* This calls the required port select and __invert, as well as
- * validating the provided group */
+/* _invert(uint8_t group, uint8_t pins)
+ * This method sets inversion pins on group
+ * -Performs sanity check on group parameter
+ */
 void CY8C95X0::_invert(uint8_t group, uint8_t pins)
 {
+  if(group >= group_c) return;
   __portSelect(group);
   __invert(pins);
 }
-/* This can either set all pins to inverting, turn off inverting,
- * or invert the current inverting 
- * The default is 0x01, All pins to be inverting
+/* invertGroup(uint8_t group, byte mode)
+ * This method sets inversion pins on a group with a particular mode
+ * -if mode is 0x00, it shuts off the inversion
+ * -if mode is 0x01, it turns off inversion on all ports
+ * -if mode is 0x02 or more, the current state of each pin's inversion
+ * is inverted.
  */
 void CY8C95X0::invertGroup(uint8_t group, byte mode)
 {
@@ -360,12 +434,11 @@ void CY8C95X0::invertGroup(uint8_t group, byte mode)
     _invert(group,invstates[group]);
   }
 }
-/* Set a pin to have inverse input */
-/* There are modes allowed only in this function
- * which accepts a pin type.
- * 0 = turn off
- * 1 = Turn on //Default
- * everything else = toggle
+/* invert(pin_t pin, byte mode)
+ * This method sets inversion on a single pin
+ * -if mode is 0x00, the inversion is shut off on that pin
+ * -if mode is 0x01, the inversion is turned on on the pin
+ * -if mode ix 0x02 or more, the pin's inversion state is inverted.
  */
 void CY8C95X0::invert(pin_t pin, byte mode)
 {
@@ -384,30 +457,46 @@ void CY8C95X0::invert(pin_t pin, byte mode)
   }
   _invert(pin.group,invstates[pin.group]);
 }
+/* invert(uint8_t group, uint8_t pin)
+ * This method sets inversion on, for a single pin
+ */
 void CY8C95X0::invert(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group,pin};
   invert(tmp);
 }
+/* invert(uint8_t pin)
+ * This method sets inversion on, for a single pin
+ */
 void CY8C95X0::invert(uint8_t pin)
 {
   invert(pinTranslate(pin));
 }
-/*Toggle the inversion on a single pin */
+/* invertT(uint8_t pin)
+ * This method toggles inversion for a single pin
+ */
 void CY8C95X0::invertT(uint8_t pin)
 {
   invert(pinTranslate(pin),0x02);
 }
+/* invertT(uint8_t group, uint8_t pin)
+ * This method toggles inversion for a single pin
+ */
 void CY8C95X0::invertT(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group,pin};
   invert(tmp,0x02);
 }
-/* Turn inversion off for a pin */
+/* invertOff(uint8_t pin)
+ * This method turns off inversion for a single pin
+ */
 void CY8C95X0::invertOff(uint8_t pin)
 {
   invert(pinTranslate(pin),0x00);
 }
+/* invertOff(uint8_t group, uint8_t pin)
+ * This method turns off inversion for a single pin
+ */
 void CY8C95X0::invertOff(uint8_t group, uint8_t pin)
 {
   pin_t tmp = {group,pin};
@@ -418,8 +507,8 @@ void CY8C95X0::invertOff(uint8_t group, uint8_t pin)
   /*****************
    * PWM functions *
    *****************/
-   
-   
+
+
 /* pinPWM(pin_t pin)
  * This method accepts a pin type and returns the pwm controller for said pin.
  * -It does run a sanity check on the pin.group and pin.pin values
