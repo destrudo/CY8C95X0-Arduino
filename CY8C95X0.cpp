@@ -511,25 +511,16 @@ void CY8C95X0::invertOff(uint8_t group, uint8_t pin)
 /* pinPWM(pin_t pin)
  * This method accepts a pin type and returns the pwm controller for said pin.
  * -It does run a sanity check on the pin.group and pin.pin values
- * -At the moment, it only supports a matrix for the 60 pin model, but others
- *  will be added at a later date.
  */
 int CY8C95X0::pinPWM(pin_t pin)
 {
   if( (pin.group >= group_c) || (pin.pin >= MAX_PIN) ) return 255;
-
-  /* 60 pin pwm matrix
-       P0   P1   P2   P3   P4   P5   P6   P7
-  G0   7    5    3    1    7    5    3    1
-  G1   6    4    2    0    6    4    2    0    
-  G2   14   12   8    11
-  G3   7    5    3    1    15   13   11   9
-  G4   6    4    2    0    14   12   10   8
-  G5   10   8    11   9    12   14   13   15
-  G6   0    1    2    3    4    5    6    7
-  G7   8    9    10   11   12   13   14   15
-  */
-  byte level[8][8] = { {7,5,4,1,7,5,3,1},
+  byte tbl60[8][8];
+  byte tbl40[6][8];
+  byte tbl20[3][8];
+  if(pin_c == 60)
+  {
+    byte tbl60[8][8] = { {7,5,4,1,7,5,3,1},
                        {6,4,2,0,6,4,2,0},
                        {14,12,8,11,255,255,255,255}, 
                        {7,5,3,1,15,13,11,9},
@@ -537,7 +528,27 @@ int CY8C95X0::pinPWM(pin_t pin)
                        {10,8,11,9,12,14,13,15},
                        {0,1,2,3,4,5,6,7},
                        {8,9,10,11,12,13,14,15} };
-  return level[pin.group][pin.pin];
+    return tbl60[pin.group][pin.pin];
+  }
+  else if(pin_c == 40)
+  {
+    byte tbl40[6][8] = { {7,5,3,1,7,5,3,1},
+                       {6,4,2,0,6,4,2,0},
+                       {6,4,0,3,255,255,255,255},
+                       {7,5,3,1,7,5,3,1},
+                       {6,4,2,0,6,4,2,0},
+                       {2,0,3,1,255,255,255,255} };
+					   
+    return tbl40[pin.group][pin.pin];
+  }
+  else
+  {
+    byte tbl20[3][8] = { {3,1,3,1,3,1,3,1},
+                      {2,0,2,0,2,0,2,0},
+                      {2,0,0,3,255,255,255,255}};
+    return tbl20[pin.group][pin.pin];
+  }
+  return 255;
 }
 /* __getPWMConfig(uint8_t circuit)
  * This method returns a pwm_t struct containing circuit pwm's settings
