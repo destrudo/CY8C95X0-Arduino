@@ -29,6 +29,9 @@
 #include "CY8C95X0.h"
 #include "CY8C95X0_BASE.h"
 
+
+
+
 /* CY8C95X0()
  * Default constructor method which does essentially nothing
  * -The wire.begin command, as far as 1.01/3/5 are concerned, seems to be
@@ -114,8 +117,7 @@ pin_t CY8C95X0::pinTranslate(uint8_t pinIn)
   pin.pin = byte(pinIn % 8); //set pin
   pin.group = byte(pinIn / 8); //set pin group
   return pin;
-}
-
+} 
 /* resetChip()
  * This method resets the chip to eeprom-stored defaults
  */
@@ -212,7 +214,7 @@ void CY8C95X0::__portSelect(byte port)
  */
 byte CY8C95X0::__getDivider()
 {
-  byte tmp;
+  byte tmp = 0x00;
   rawWrite(1, REG_PROG_DIV);
   Wire.requestFrom(address, uint8_t(1));
   if(Wire.available()) tmp = Wire.read();
@@ -224,7 +226,7 @@ byte CY8C95X0::__getDivider()
  */
 byte CY8C95X0::__getOutput(uint8_t group)
 {
-  byte tmp;
+  byte tmp = 0x00;
   rawWrite(1, REG_GO0 + group);
   Wire.requestFrom(address, uint8_t(1));
   if(Wire.available()) tmp = Wire.read();
@@ -236,7 +238,7 @@ byte CY8C95X0::__getOutput(uint8_t group)
  */
 byte CY8C95X0::__getInput(uint8_t group)
 {
-  byte tmp;
+  byte tmp = 0x00;
   rawWrite(1, (0x00 + group));
   Wire.requestFrom(address, uint8_t(1));
   if(Wire.available()) tmp = Wire.read();
@@ -393,7 +395,7 @@ boolean CY8C95X0::getInterruptMask(uint8_t pin)
  */
 byte CY8C95X0::__getInvStates(uint8_t group)
 {
-  byte tmp;
+  byte tmp = 0x00;
   __portSelect(group);
   rawWrite(1, REG_INVERSION);
   Wire.requestFrom(address, uint8_t(1));
@@ -551,13 +553,8 @@ void CY8C95X0::invertOff(uint8_t group, uint8_t pin)
  */
 int CY8C95X0::pinPWM(pin_t pin)
 {
-  if( (pin.group >= group_c) || (pin.pin >= MAX_PIN) ) return 255;
-  byte tbl60[8][8];
-  byte tbl40[6][8];
-  byte tbl20[3][8];
-  if(pin_c == 60)
-  {
-    byte tbl60[8][8] = { {7,5,4,1,7,5,3,1},
+  if( (pin.group >= group_c) || (pin.pin >= pin_c) ) return 255;
+  byte tbl60[8][8] = { {7,5,4,1,7,5,3,1},
                        {6,4,2,0,6,4,2,0},
                        {14,12,8,11,255,255,255,255}, 
                        {7,5,3,1,15,13,11,9},
@@ -565,27 +562,76 @@ int CY8C95X0::pinPWM(pin_t pin)
                        {10,8,11,9,12,14,13,15},
                        {0,1,2,3,4,5,6,7},
                        {8,9,10,11,12,13,14,15} };
-    return tbl60[pin.group][pin.pin];
-  }
-  else if(pin_c == 40)
-  {
-    byte tbl40[6][8] = { {7,5,3,1,7,5,3,1},
+  byte tbl40[6][8] = { {7,5,3,1,7,5,3,1},
                        {6,4,2,0,6,4,2,0},
                        {6,4,0,3,255,255,255,255},
                        {7,5,3,1,7,5,3,1},
                        {6,4,2,0,6,4,2,0},
                        {2,0,3,1,255,255,255,255} };
-					   
-    return tbl40[pin.group][pin.pin];
-  }
-  else
-  {
-    byte tbl20[3][8] = { {3,1,3,1,3,1,3,1},
+  byte tbl20[3][8] = { {3,1,3,1,3,1,3,1},
                       {2,0,2,0,2,0,2,0},
                       {2,0,0,3,255,255,255,255}};
-    return tbl20[pin.group][pin.pin];
-  }
+
+  if(pin_c == 60) return tbl60[pin.group][pin.pin];
+  else if(pin_c == 40) return tbl40[pin.group][pin.pin];
+  else return tbl20[pin.group][pin.pin];
+
   return 255;
+}
+/* pwmTranslate(uint8_t controller)
+ * This method acts as the opposite of pinPWM, translating a pwm controller to a set of pins
+ * -This is pretty messy, sucks an awful lot of memory up.  If I were to have pinPWM run a search,
+ * it would be worse, though.  Setting the data in a nice dynamic multidimensionl array would have
+ * required a large number of calls, too.  So please excuse the mess.
+ */
+pwmTrans_t CY8C95X0::pwmTranslate(uint8_t controller)
+{
+  byte tbl60[16][4] = { {11,15,31,44},
+                  {3,7,23,45},
+                  {10,14,30,46},
+                  {2,6,22,47},
+                  {9,13,29,48},
+                  {1,5,21,49},
+                  {8,12,28,50},
+                  {0,4,20,51},
+                  {18,35,37,52},
+                  {27,39,53,255},
+                  {34,36,54,255},
+                  {19,26,38,55},
+                  {17,33,40,56},
+                  {25,42,57,255},
+                  {16,32,41,58},
+                  {24,43,59,255} };
+  byte tbl40[8][6] = { {11,15,18,31,35,37},
+                  {3,7,23,27,39,255},
+                  {10,14,30,34,36,255},
+                  {2,6,19,22,26,38},
+                  {9,13,17,29,33,255},
+                  {1,5,21,25,255,255},
+                  {8,12,16,28,32,255},
+                  {0,4,20,24,255,255} };
+  byte tbl20[4][6] = { {9,11,13,15,17,18},
+                  {1,3,5,7,255,255},
+                  {8,10,12,14,16,255},
+                  {0,2,4,6,19,255} };
+
+  uint8_t count = 0;
+  
+  if(pin_c == 60) count = 4;
+  else if(pin_c == 40) count = 6;
+  else count = 6;
+  
+  pwmTrans_t ptmp;
+  ptmp.data[0] = 255;
+  ptmp.count = count;
+  if(controller >= pwm_c) return ptmp;
+  for(int i = 0; i < count; i++)
+  {
+    if(pin_c == 60) ptmp.data[i] = tbl60[controller][i];
+    if(pin_c == 40) ptmp.data[i] = tbl40[controller][i];
+    else ptmp.data[i] == tbl20[controller][i];
+  }
+  return ptmp;
 }
 /* __getPWMConfig(uint8_t circuit)
  * This method returns a pwm_t struct containing circuit pwm's settings
@@ -594,13 +640,27 @@ int CY8C95X0::pinPWM(pin_t pin)
  */
 pwm_t CY8C95X0::__getPWMConfig(uint8_t circuit)
 {
-  pwm_t tmp;
+  pwm_t tmp = {0,0,0};
   rawWrite(2, REG_SEL_PWM, circuit);
   Wire.requestFrom(address, uint8_t(3));
   if(Wire.available()) tmp.clock = Wire.read();
   if(Wire.available()) tmp.period = Wire.read();
   if(Wire.available()) tmp.pw = Wire.read();
   return tmp;
+}
+/* pwmSelectDisable(uint8_t pin)
+ * This method de-selects all other pins which share the same controller as pin
+ * -This is necessary if you have not cordoned off which controllers are used by what pins
+ * -This is pretty messy, if there's a better way, it'll happen
+ */
+void CY8C95X0::pwmSelectDisable(uint8_t pin)
+{
+  pwmTrans_t tmp = pwmTranslate(pinPWM(pinTranslate(pin))); //I think this is terribly ugly, luckily it doesn't suck up too many cycles
+  for(int i = 0; i < tmp.count; i++)
+  {
+    if((tmp.data[i] != pin) && (tmp.data[i] <= pin_c)) //If the value is not the pin and not greater than our max pin count
+      pwmSelect(tmp.data[i],LOW); //Disable the pin
+  }
 }
 /* __getPortPWM(uint8_t group)
  * This method returns a byte containing the currents pins with PWM enabled
@@ -610,7 +670,7 @@ pwm_t CY8C95X0::__getPWMConfig(uint8_t circuit)
  */
 byte CY8C95X0::__getPortPWM(uint8_t group)
 {
-  byte tmp;
+  byte tmp = 0x00;
   __portSelect(group);
   rawWrite(1, REG_SEL_PWM_PORT_OUT);
   Wire.requestFrom(address, uint8_t(1));
@@ -653,9 +713,6 @@ void CY8C95X0::__pwmClockSel(byte controller)
 {
   rawWrite(2,REG_CONF_PWM,controller);
 }
-
-
-
 
 /* __pwmConfigPeriod(byte period)
  * This method is used for sending period data to the previously selected
@@ -831,7 +888,7 @@ void CY8C95X0::analogWrite(uint8_t pin, uint8_t value)
  */
 drive_t CY8C95X0::__getDrive(uint8_t group)
 {
-  drive_t tmp;
+  drive_t tmp = {0,0,0,0,0,0,0};
   __portSelect(group);
   rawWrite(1, REG_DM_PU);
   Wire.requestFrom(address, uint8_t(7));
@@ -918,7 +975,7 @@ void CY8C95X0::driveMode(uint8_t pin, byte mode)
  */
 byte CY8C95X0::__getPortDirection(uint8_t group)
 {
-  byte tmp = 0;
+  byte tmp = 0x00;
   __portSelect(group);
   rawWrite(1, REG_PIN_DIR);
   Wire.requestFrom(address, uint8_t(1));
@@ -977,7 +1034,7 @@ void CY8C95X0::__digitalH(byte command, byte pins)
  */
 boolean CY8C95X0::_digitalRead(pin_t pin)
 {
-  byte tmp;
+  byte tmp = 0x00;
   rawWrite(1, REG_GI0 + pin.group);
   Wire.requestFrom(address, uint8_t(1));
   if(Wire.available()) tmp = Wire.read();

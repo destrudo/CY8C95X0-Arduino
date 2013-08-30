@@ -16,16 +16,16 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-
-#ifndef CY8C95X0_H
-  #define CY895X0_H
-
 #if ARDUINO >= 100
   #include "Arduino.h"
 #else
   #include "WProgram.h"
 #endif
+ 
+#ifndef CY8C95X0_H
+  #define CY895X0_H
+
+
 
 #include "CY8C95X0_BASE.h"
 #include <stdarg.h>
@@ -67,6 +67,7 @@ class CY8C95X0
   void begin(uint8_t, uint8_t = 0);
   
   pin_t pinTranslate(uint8_t);
+  pwmTrans_t pwmTranslate(uint8_t);
   void resetChip();
   void saveChip();
   boolean validPort(byte);
@@ -78,7 +79,6 @@ class CY8C95X0
   byte __getOutput(uint8_t);
   byte __getInput(uint8_t);
 
-  /* these are untested */
   /***********************
    * Interrupt functions *
    ***********************/
@@ -125,6 +125,7 @@ class CY8C95X0
   pwm_t __getPWMConfig(uint8_t);
   byte __getPortPWM(uint8_t);
   void __pwmSelect(byte);
+  void pwmSelectDisable(uint8_t);
   void __pwmConfigSelect(byte);
   void __pwmClockSel(byte);
   void __pwmConfigPeriod(byte);

@@ -16,15 +16,16 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef CY8C95X0_BASE_H
-  #define CY8C95X0_BASE_H
-
   #if ARDUINO >= 100
     #include "Arduino.h"
   #else
     #include "WProgram.h"
   #endif
+  
+#ifndef CY8C95X0_BASE_H
+  #define CY8C95X0_BASE_H
+
+
 
 
   #define CY8C95X0_ADDR B0100000
@@ -128,7 +129,7 @@
   #define ALL_PINS 0xFF
   #define NO_PINS 0x00
   #define MAX_PIN 8
-  
+  #define SHARED_PWM 4
   struct pin_t {
     byte group;
     byte pin;
@@ -151,5 +152,11 @@
     byte slow;
     byte hiz;
   };
-
+  
+  //These are much larger than they need to be, and will later probably be destroyed
+  struct pwmTrans_t {
+    byte data[6]; //Care needs to be taken, this is the max number of pins which share the same pwm controller (In all cases with this chip, 4.)
+    uint8_t count;
+  };
+  
 #endif
