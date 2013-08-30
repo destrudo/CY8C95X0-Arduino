@@ -27,12 +27,21 @@ Missing Functionality:
 
 2) There's no interrupt handling, just a placeholder that contains a write to the register like above.
 
+3) Be wary of the PWM controller and the ports you use.  You'll need to manually switch on and off the outputs (Using digitalWrite) which are connected to the pwm controller you want to use, otherwise they'll all light up.
+
 ========
 Bug requests:
 ========
 
 
 If I don't respond to any bug requests, find me on freenode under the handle 'destrudo'.  Querying me will likely result in things getting fixed, or functionality expanded.
+
+
+========
+What's next:
+========
+
+Internal functions for easily handling pwm pin outputs
 
 ========
 Commentary:
